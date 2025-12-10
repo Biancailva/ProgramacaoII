@@ -1,0 +1,699 @@
+import java.util.*;
+
+public class ControleFinanceiro {
+
+    private static List<Lancamento> lancamentos = new ArrayList<>();
+    private static Map<String, Double> categorias = new HashMap<>();
+    private static Map<String, Double> limitesCategorias = new HashMap<>();
+
+    public static void main(String[] args) {
+        Scanner input = new Scanner(System.in);
+        int opcao;
+
+        do {
+            System.out.println("\n===== CONTROLE FINANCEIRO =====");
+            System.out.println("1) Gerenciar categorias");
+            System.out.println("2) Registrar lançamento");
+            System.out.println("3) Listar lançamentos");
+            System.out.println("4) Relatórios financeiros");
+            System.out.println("5) Verificar alertas");
+            System.out.println("6) Remover/editar lançamento");
+            System.out.println("7) Sair");
+            System.out.print("Opção: ");
+            opcao = input.nextInt();
+            input.nextLine();
+
+            switch (opcao) {
+                case 1:
+                    menuCategorias(input);
+                    break;
+                case 2:
+                    registrarLancamento(input);
+                    break;
+                case 3:
+                    listarLancamentos(input);
+                    break;
+                case 4:
+                    exibirRelatorios();
+                    break;
+                case 5:
+                    verificarAlertas();
+                    break;
+                case 6:
+                    menuEditarRemover(input);
+                    break;
+                case 7:
+                    System.out.println("Encerrando sistema...");
+                    break;
+                default:
+                    System.out.println("Opção inválida. Tente novamente.");
+            }
+
+        } while (opcao != 7);
+    }
+
+    public static void menuCategorias(Scanner input) {
+        System.out.println("\n--- GERENCIAR CATEGORIAS ---");
+        System.out.println("1) Cadastrar nova categoria");
+        System.out.println("2) Editar categoria");
+        System.out.println("3) Definir/alterar limite");
+        System.out.println("4) Listar todas as categorias");
+        System.out.println("5) Remover categoria");
+        System.out.print("Escolha: ");
+        int acao = input.nextInt();
+        input.nextLine();
+
+        switch (acao) {
+            case 1:
+                cadastrarCategoria(input);
+                break;
+            case 2:
+                editarCategoria(input);
+                break;
+            case 3:
+                definirLimiteCategoria(input);
+                break;
+            case 4:
+                listarCategorias();
+                break;
+            case 5:
+                removerCategoria(input);
+                break;
+            default:
+                System.out.println("Ação inválida.");
+        }
+    }
+
+    public static void cadastrarCategoria(Scanner input) {
+        System.out.println("\n--- CADASTRAR CATEGORIA ---");
+        
+        System.out.print("Nome da categoria: ");
+        String nome = input.nextLine().trim();
+        
+        if (categorias.containsKey(nome.toLowerCase())) {
+            System.out.println("Esta categoria já existe!");
+            return;
+        }
+        
+        categorias.put(nome.toLowerCase(), 0.0);
+        
+        System.out.print("Deseja definir um limite para esta categoria? (S/N): ");
+        String resposta = input.nextLine().trim();
+        
+        if (resposta.equalsIgnoreCase("S")) {
+            System.out.print("Valor do limite (ex: 500.00): R$ ");
+            double limite = input.nextDouble();
+            input.nextLine();
+            
+            if (limite > 0) {
+                limitesCategorias.put(nome.toLowerCase(), limite);
+                System.out.printf("Categoria '%s' cadastrada com limite de R$ %.2f\n", nome, limite);
+            } else {
+                System.out.println("Limite deve ser positivo. Categoria cadastrada sem limite.");
+            }
+        } else {
+            System.out.println("Categoria '" + nome + "' cadastrada sem limite.");
+        }
+    }
+
+    public static void editarCategoria(Scanner input) {
+        System.out.println("\n--- EDITAR CATEGORIA ---");
+        
+        if (categorias.isEmpty()) {
+            System.out.println("Nenhuma categoria cadastrada.");
+            return;
+        }
+        
+        listarCategorias();
+        
+        System.out.print("\nNome da categoria a editar: ");
+        String nomeAntigo = input.nextLine().trim().toLowerCase();
+        
+        if (!categorias.containsKey(nomeAntigo)) {
+            System.out.println("Categoria não encontrada!");
+            return;
+        }
+        
+        System.out.print("Novo nome da categoria: ");
+        String novoNome = input.nextLine().trim();
+        
+        if (categorias.containsKey(novoNome.toLowerCase()) && !novoNome.equalsIgnoreCase(nomeAntigo)) {
+            System.out.println("Já existe uma categoria com este nome!");
+            return;
+        }
+        
+        double totalCategoria = categorias.get(nomeAntigo);
+        
+        categorias.remove(nomeAntigo);
+        categorias.put(novoNome.toLowerCase(), totalCategoria);
+        
+        if (limitesCategorias.containsKey(nomeAntigo)) {
+            double limite = limitesCategorias.get(nomeAntigo);
+            limitesCategorias.remove(nomeAntigo);
+            limitesCategorias.put(novoNome.toLowerCase(), limite);
+        }
+        
+        for (Lancamento lanc : lancamentos) {
+            if (lanc.getCategoria().equalsIgnoreCase(nomeAntigo)) {
+                lanc.setCategoria(novoNome);
+            }
+        }
+        
+        System.out.println("Categoria renomeada de '" + nomeAntigo + "' para '" + novoNome + "'");
+    }
+
+    public static void definirLimiteCategoria(Scanner input) {
+        System.out.println("\n--- DEFINIR LIMITE DE CATEGORIA ---");
+        
+        if (categorias.isEmpty()) {
+            System.out.println("Nenhuma categoria cadastrada.");
+            return;
+        }
+        
+        listarCategorias();
+        
+        System.out.print("\nNome da categoria: ");
+        String nome = input.nextLine().trim().toLowerCase();
+        
+        if (!categorias.containsKey(nome)) {
+            System.out.println("Categoria não encontrada!");
+            return;
+        }
+        
+        System.out.printf("Valor atual do limite: R$ %.2f\n", 
+                         limitesCategorias.getOrDefault(nome, 0.0));
+        
+        System.out.print("Novo valor do limite (0 para remover limite): R$ ");
+        double novoLimite = input.nextDouble();
+        input.nextLine();
+        
+        if (novoLimite > 0) {
+            limitesCategorias.put(nome, novoLimite);
+            System.out.printf("Limite da categoria '%s' definido para R$ %.2f\n", 
+                            getNomeCategoriaOriginal(nome), novoLimite);
+        } else if (novoLimite == 0) {
+            limitesCategorias.remove(nome);
+            System.out.println("Limite removido da categoria '" + getNomeCategoriaOriginal(nome) + "'");
+        } else {
+            System.out.println("Valor inválido! O limite deve ser positivo.");
+        }
+    }
+
+    public static void listarCategorias() {
+        System.out.println("\n=== CATEGORIAS CADASTRADAS ===");
+        
+        if (categorias.isEmpty()) {
+            System.out.println("Nenhuma categoria cadastrada.");
+            return;
+        }
+        
+        System.out.printf("%-20s %-15s %-15s\n", "CATEGORIA", "TOTAL GASTO", "LIMITE");
+        System.out.println("-".repeat(50));
+        
+        for (Map.Entry<String, Double> entry : categorias.entrySet()) {
+            String nome = getNomeCategoriaOriginal(entry.getKey());
+            double total = entry.getValue();
+            double limite = limitesCategorias.getOrDefault(entry.getKey(), 0.0);
+            
+            String limiteStr = limite > 0 ? String.format("R$ %.2f", limite) : "Sem limite";
+            
+            if (total < 0) {
+                System.out.printf("%-20s %-15s %-15s\n", 
+                                nome, 
+                                String.format("R$ %.2f", Math.abs(total)), 
+                                limiteStr);
+            } else {
+                System.out.printf("%-20s %-15s %-15s\n", 
+                                nome, 
+                                String.format("R$ 0.00"), 
+                                limiteStr);
+            }
+        }
+    }
+
+    public static void removerCategoria(Scanner input) {
+        System.out.println("\n--- REMOVER CATEGORIA ---");
+        
+        if (categorias.isEmpty()) {
+            System.out.println("Nenhuma categoria cadastrada.");
+            return;
+        }
+        
+        listarCategorias();
+        
+        System.out.print("\nNome da categoria a remover: ");
+        String nome = input.nextLine().trim().toLowerCase();
+        
+        if (!categorias.containsKey(nome)) {
+            System.out.println("Categoria não encontrada!");
+            return;
+        }
+        
+        boolean temLancamentos = false;
+        for (Lancamento lanc : lancamentos) {
+            if (lanc.getCategoria().equalsIgnoreCase(nome)) {
+                temLancamentos = true;
+                break;
+            }
+        }
+        
+        if (temLancamentos) {
+            System.out.println("Esta categoria possui lançamentos associados!");
+            System.out.print("Deseja removê-la mesmo assim? (S/N): ");
+            String confirmacao = input.nextLine().trim();
+            
+            if (!confirmacao.equalsIgnoreCase("S")) {
+                System.out.println("Remoção cancelada.");
+                return;
+            }
+        }
+        
+        categorias.remove(nome);
+        limitesCategorias.remove(nome);
+        
+        System.out.println("Categoria removida com sucesso!");
+    }
+
+    public static void registrarLancamento(Scanner input) {
+        System.out.println("\n--- REGISTRAR LANÇAMENTO ---");
+        
+        if (categorias.isEmpty()) {
+            System.out.println("É necessário cadastrar categorias primeiro!");
+            return;
+        }
+        
+        System.out.print("Descrição: ");
+        String descricao = input.nextLine().trim();
+        
+        System.out.print("Valor (positivo para receita, negativo para despesa): R$ ");
+        double valor = input.nextDouble();
+        input.nextLine();
+        
+        if (valor == 0) {
+            System.out.println("Valor não pode ser zero!");
+            return;
+        }
+        
+        System.out.println("Categorias disponíveis:");
+        listarCategorias();
+        
+        System.out.print("Categoria: ");
+        String categoria = input.nextLine().trim();
+        
+        if (!categorias.containsKey(categoria.toLowerCase())) {
+            System.out.println("Categoria não encontrada!");
+            return;
+        }
+        
+        String categoriaLower = categoria.toLowerCase();
+        
+        if (valor < 0) {
+            double limite = limitesCategorias.getOrDefault(categoriaLower, 0.0);
+            double gastoAtual = Math.abs(categorias.get(categoriaLower));
+            
+            if (limite > 0 && (gastoAtual + Math.abs(valor)) > limite) {
+                System.out.println("\n⚠️  ALERTA: Este lançamento excederá o limite da categoria!");
+                System.out.printf("Gasto atual: R$ %.2f\n", gastoAtual);
+                System.out.printf("Limite: R$ %.2f\n", limite);
+                System.out.printf("Novo gasto seria: R$ %.2f\n", gastoAtual + Math.abs(valor));
+                
+                System.out.print("Deseja continuar mesmo assim? (S/N): ");
+                String resposta = input.nextLine().trim();
+                
+                if (!resposta.equalsIgnoreCase("S")) {
+                    System.out.println("Lançamento cancelado.");
+                    return;
+                }
+            }
+            
+            categorias.put(categoriaLower, categorias.get(categoriaLower) + valor);
+        } else {
+            categorias.put(categoriaLower, categorias.get(categoriaLower) + valor);
+        }
+        
+        Lancamento novoLancamento = new Lancamento(descricao, valor, categoria);
+        lancamentos.add(novoLancamento);
+        
+        System.out.printf("\nLançamento registrado com sucesso!\n");
+        System.out.printf("Descrição: %s\n", descricao);
+        System.out.printf("Valor: R$ %.2f\n", valor);
+        System.out.printf("Categoria: %s\n", getNomeCategoriaOriginal(categoriaLower));
+        System.out.printf("Tipo: %s\n", valor >= 0 ? "RECEITA" : "DESPESA");
+    }
+
+    public static void listarLancamentos(Scanner input) {
+        System.out.println("\n--- LISTAR LANÇAMENTOS ---");
+        System.out.println("1) Listar todos os lançamentos");
+        System.out.println("2) Filtrar por categoria");
+        System.out.print("Escolha: ");
+        int filtro = input.nextInt();
+        input.nextLine();
+        
+        if (lancamentos.isEmpty()) {
+            System.out.println("Nenhum lançamento registrado.");
+            return;
+        }
+        
+        if (filtro == 2) {
+            System.out.println("Categorias disponíveis:");
+            listarCategorias();
+            
+            System.out.print("Categoria para filtrar: ");
+            String categoriaFiltro = input.nextLine().trim().toLowerCase();
+            
+            if (!categorias.containsKey(categoriaFiltro)) {
+                System.out.println("Categoria não encontrada!");
+                return;
+            }
+            
+            System.out.printf("\n=== LANÇAMENTOS - CATEGORIA: %s ===\n", 
+                            getNomeCategoriaOriginal(categoriaFiltro));
+            System.out.printf("%-5s %-25s %-15s %-15s %-10s\n", 
+                            "ID", "DESCRIÇÃO", "VALOR", "CATEGORIA", "TIPO");
+            System.out.println("-".repeat(70));
+            
+            int contador = 1;
+            double totalCategoria = 0;
+            
+            for (int i = 0; i < lancamentos.size(); i++) {
+                Lancamento lanc = lancamentos.get(i);
+                if (lanc.getCategoria().equalsIgnoreCase(categoriaFiltro)) {
+                    System.out.printf("%-5d %-25s %-15s %-15s %-10s\n", 
+                                    contador,
+                                    lanc.getDescricao(),
+                                    String.format("R$ %.2f", lanc.getValor()),
+                                    getNomeCategoriaOriginal(lanc.getCategoria()),
+                                    lanc.getValor() >= 0 ? "RECEITA" : "DESPESA");
+                    totalCategoria += lanc.getValor();
+                    contador++;
+                }
+            }
+            
+            System.out.println("-".repeat(70));
+            System.out.printf("TOTAL DA CATEGORIA: R$ %.2f\n", totalCategoria);
+            
+        } else {
+            System.out.println("\n=== TODOS OS LANÇAMENTOS ===");
+            System.out.printf("%-5s %-25s %-15s %-15s %-10s\n", 
+                            "ID", "DESCRIÇÃO", "VALOR", "CATEGORIA", "TIPO");
+            System.out.println("-".repeat(70));
+            
+            for (int i = 0; i < lancamentos.size(); i++) {
+                Lancamento lanc = lancamentos.get(i);
+                System.out.printf("%-5d %-25s %-15s %-15s %-10s\n", 
+                                i + 1,
+                                lanc.getDescricao(),
+                                String.format("R$ %.2f", lanc.getValor()),
+                                getNomeCategoriaOriginal(lanc.getCategoria()),
+                                lanc.getValor() >= 0 ? "RECEITA" : "DESPESA");
+            }
+            
+            System.out.println("-".repeat(70));
+            System.out.printf("Total de lançamentos: %d\n", lancamentos.size());
+        }
+    }
+
+    public static void exibirRelatorios() {
+        System.out.println("\n===== RELATÓRIOS FINANCEIROS =====");
+        
+        if (lancamentos.isEmpty()) {
+            System.out.println("Nenhum lançamento registrado.");
+            return;
+        }
+        
+        double totalReceitas = 0;
+        double totalDespesas = 0;
+        
+        Map<String, Double> receitasPorCategoria = new HashMap<>();
+        Map<String, Double> despesasPorCategoria = new HashMap<>();
+        
+        for (Lancamento lanc : lancamentos) {
+            double valor = lanc.getValor();
+            String categoria = lanc.getCategoria().toLowerCase();
+            
+            if (valor >= 0) {
+                totalReceitas += valor;
+                receitasPorCategoria.put(categoria, 
+                                       receitasPorCategoria.getOrDefault(categoria, 0.0) + valor);
+            } else {
+                totalDespesas += Math.abs(valor);
+                despesasPorCategoria.put(categoria, 
+                                       despesasPorCategoria.getOrDefault(categoria, 0.0) + Math.abs(valor));
+            }
+        }
+        
+        double saldoGeral = totalReceitas - totalDespesas;
+        
+        System.out.println("\n=== SALDO GERAL ===");
+        System.out.printf("Total de Receitas: R$ %.2f\n", totalReceitas);
+        System.out.printf("Total de Despesas: R$ %.2f\n", totalDespesas);
+        System.out.printf("Saldo Geral: R$ %.2f\n", saldoGeral);
+        System.out.printf("Situação: %s\n", saldoGeral >= 0 ? "POSITIVA" : "NEGATIVA");
+        
+        System.out.println("\n=== TOTAL POR CATEGORIA (RECEITAS) ===");
+        if (receitasPorCategoria.isEmpty()) {
+            System.out.println("Nenhuma receita registrada.");
+        } else {
+            for (Map.Entry<String, Double> entry : receitasPorCategoria.entrySet()) {
+                System.out.printf("%-20s: R$ %.2f\n", 
+                                getNomeCategoriaOriginal(entry.getKey()), 
+                                entry.getValue());
+            }
+        }
+        
+        System.out.println("\n=== TOTAL POR CATEGORIA (DESPESAS) ===");
+        if (despesasPorCategoria.isEmpty()) {
+            System.out.println("Nenhuma despesa registrada.");
+        } else {
+            for (Map.Entry<String, Double> entry : despesasPorCategoria.entrySet()) {
+                System.out.printf("%-20s: R$ %.2f\n", 
+                                getNomeCategoriaOriginal(entry.getKey()), 
+                                entry.getValue());
+            }
+        }
+        
+        System.out.println("\n=== RESUMO POR CATEGORIA ===");
+        System.out.printf("%-20s %-15s %-15s %-15s\n", 
+                        "CATEGORIA", "RECEITAS", "DESPESAS", "SALDO");
+        System.out.println("-".repeat(65));
+        
+        for (String categoria : categorias.keySet()) {
+            double receitas = receitasPorCategoria.getOrDefault(categoria, 0.0);
+            double despesas = despesasPorCategoria.getOrDefault(categoria, 0.0);
+            double saldoCategoria = receitas - despesas;
+            
+            System.out.printf("%-20s %-15s %-15s %-15s\n", 
+                            getNomeCategoriaOriginal(categoria),
+                            String.format("R$ %.2f", receitas),
+                            String.format("R$ %.2f", despesas),
+                            String.format("R$ %.2f", saldoCategoria));
+        }
+    }
+
+    public static void verificarAlertas() {
+        System.out.println("\n===== ALERTAS =====");
+        
+        boolean temAlertas = false;
+        
+        for (Map.Entry<String, Double> entry : limitesCategorias.entrySet()) {
+            String categoria = entry.getKey();
+            double limite = entry.getValue();
+            double gastoAtual = Math.abs(categorias.getOrDefault(categoria, 0.0));
+            
+            if (gastoAtual > limite) {
+                temAlertas = true;
+                System.out.println("\n⚠️  ALERTA: LIMITE EXCEDIDO!");
+                System.out.printf("Categoria: %s\n", getNomeCategoriaOriginal(categoria));
+                System.out.printf("Limite estabelecido: R$ %.2f\n", limite);
+                System.out.printf("Gasto atual: R$ %.2f\n", gastoAtual);
+                System.out.printf("Excesso: R$ %.2f\n", gastoAtual - limite);
+                System.out.printf("Percentual excedido: %.1f%%\n", 
+                                ((gastoAtual - limite) / limite) * 100);
+            }
+        }
+        
+        if (!temAlertas) {
+            System.out.println("Nenhum alerta no momento. Todas as categorias estão dentro dos limites.");
+        }
+        
+        double saldoGeral = calcularSaldoGeral();
+        if (saldoGeral < 0) {
+            System.out.println("\n⚠️  ALERTA: SALDO NEGATIVO!");
+            System.out.printf("Saldo atual: R$ %.2f\n", saldoGeral);
+        }
+    }
+
+    public static void menuEditarRemover(Scanner input) {
+        System.out.println("\n--- EDITAR/REMOVER LANÇAMENTO ---");
+        System.out.println("1) Editar lançamento");
+        System.out.println("2) Remover lançamento");
+        System.out.print("Escolha: ");
+        int acao = input.nextInt();
+        input.nextLine();
+        
+        switch (acao) {
+            case 1:
+                editarLancamento(input);
+                break;
+            case 2:
+                removerLancamento(input);
+                break;
+            default:
+                System.out.println("Ação inválida.");
+        }
+    }
+
+    public static void editarLancamento(Scanner input) {
+        System.out.println("\n--- EDITAR LANÇAMENTO ---");
+        
+        if (lancamentos.isEmpty()) {
+            System.out.println("Nenhum lançamento registrado.");
+            return;
+        }
+        
+        listarLancamentos(input);
+        
+        System.out.print("\nID do lançamento a editar: ");
+        int id = input.nextInt();
+        input.nextLine();
+        
+        if (id < 1 || id > lancamentos.size()) {
+            System.out.println("ID inválido!");
+            return;
+        }
+        
+        Lancamento lancamento = lancamentos.get(id - 1);
+        
+        System.out.println("\nLançamento atual:");
+        System.out.printf("Descrição: %s\n", lancamento.getDescricao());
+        System.out.printf("Valor: R$ %.2f\n", lancamento.getValor());
+        System.out.printf("Categoria: %s\n", lancamento.getCategoria());
+        
+        System.out.println("\nNovos dados:");
+        System.out.print("Nova descrição (enter para manter): ");
+        String novaDescricao = input.nextLine().trim();
+        if (!novaDescricao.isEmpty()) {
+            lancamento.setDescricao(novaDescricao);
+        }
+        
+        System.out.print("Novo valor (0 para manter): R$ ");
+        double novoValor = input.nextDouble();
+        input.nextLine();
+        
+        String categoriaAntiga = lancamento.getCategoria().toLowerCase();
+        double valorAntigo = lancamento.getValor();
+        
+        if (novoValor != 0) {
+            categorias.put(categoriaAntiga, categorias.get(categoriaAntiga) - valorAntigo);
+            lancamento.setValor(novoValor);
+        }
+        
+        System.out.print("Nova categoria (enter para manter): ");
+        String novaCategoria = input.nextLine().trim();
+        
+        if (!novaCategoria.isEmpty()) {
+            if (!categorias.containsKey(novaCategoria.toLowerCase())) {
+                System.out.println("Categoria não encontrada! Mantendo categoria atual.");
+            } else {
+                if (novoValor == 0) {
+                    categorias.put(categoriaAntiga, categorias.get(categoriaAntiga) - valorAntigo);
+                }
+                
+                lancamento.setCategoria(novaCategoria);
+                categorias.put(novaCategoria.toLowerCase(), 
+                             categorias.get(novaCategoria.toLowerCase()) + 
+                             (novoValor != 0 ? novoValor : valorAntigo));
+            }
+        } else if (novoValor != 0) {
+            categorias.put(categoriaAntiga, categorias.get(categoriaAntiga) + novoValor);
+        }
+        
+        System.out.println("Lançamento atualizado com sucesso!");
+    }
+
+    public static void removerLancamento(Scanner input) {
+        System.out.println("\n--- REMOVER LANÇAMENTO ---");
+        
+        if (lancamentos.isEmpty()) {
+            System.out.println("Nenhum lançamento registrado.");
+            return;
+        }
+        
+        listarLancamentos(input);
+        
+        System.out.print("\nID do lançamento a remover: ");
+        int id = input.nextInt();
+        input.nextLine();
+        
+        if (id < 1 || id > lancamentos.size()) {
+            System.out.println("ID inválido!");
+            return;
+        }
+        
+        Lancamento lancamento = lancamentos.get(id - 1);
+        
+        System.out.println("\nConfirme os dados do lançamento:");
+        System.out.printf("Descrição: %s\n", lancamento.getDescricao());
+        System.out.printf("Valor: R$ %.2f\n", lancamento.getValor());
+        System.out.printf("Categoria: %s\n", lancamento.getCategoria());
+        
+        System.out.print("\nDeseja realmente remover este lançamento? (S/N): ");
+        String confirmacao = input.nextLine().trim();
+        
+        if (confirmacao.equalsIgnoreCase("S")) {
+            String categoria = lancamento.getCategoria().toLowerCase();
+            double valor = lancamento.getValor();
+            
+            categorias.put(categoria, categorias.get(categoria) - valor);
+            lancamentos.remove(id - 1);
+            
+            System.out.println("Lançamento removido com sucesso!");
+        } else {
+            System.out.println("Remoção cancelada.");
+        }
+    }
+
+    // FUNÇÕES AUXILIARES
+    private static double calcularSaldoGeral() {
+        double saldo = 0;
+        for (Lancamento lanc : lancamentos) {
+            saldo += lanc.getValor();
+        }
+        return saldo;
+    }
+    
+    private static String getNomeCategoriaOriginal(String lowerCase) {
+        for (String nome : categorias.keySet()) {
+            if (nome.equals(lowerCase)) {
+                for (Lancamento lanc : lancamentos) {
+                    if (lanc.getCategoria().equalsIgnoreCase(nome)) {
+                        return lanc.getCategoria();
+                    }
+                }
+                return nome;
+            }
+        }
+        return lowerCase;
+    }
+
+    // CLASSE INTERNA PARA REPRESENTAR UM LANÇAMENTO
+    static class Lancamento {
+        private String descricao;
+        private double valor;
+        private String categoria;
+        
+        public Lancamento(String descricao, double valor, String categoria) {
+            this.descricao = descricao;
+            this.valor = valor;
+            this.categoria = categoria;
+        }
+        
+        public String getDescricao() { return descricao; }
+        public double getValor() { return valor; }
+        public String getCategoria() { return categoria; }
+        
+        public void setDescricao(String descricao) { this.descricao = descricao; }
+        public void setValor(double valor) { this.valor = valor; }
+        public void setCategoria(String categoria) { this.categoria = categoria; }
+    }
+}

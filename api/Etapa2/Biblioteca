@@ -1,0 +1,433 @@
+import java.util.*;
+
+public class BibliotecaEmprestimos {
+
+    private static Map<String, String> acervo = new HashMap<>();
+    private static Map<String, String> usuarios = new HashMap<>();
+    private static Map<String, String> itensEmprestados = new HashMap<>();
+    private static Map<String, Integer> contadorEmprestimosUsuario = new HashMap<>();
+    private static List<String> auditoria = new ArrayList<>();
+    
+    private static int limiteEmprestimos = 3;
+
+    public static void main(String[] args) {
+        Scanner input = new Scanner(System.in);
+        int opcao;
+
+        do {
+            System.out.println("\n===== SISTEMA DE EMPRÉSTIMOS =====");
+            System.out.println("1) Cadastrar/listar acervo");
+            System.out.println("2) Cadastrar/listar usuários");
+            System.out.println("3) Emprestar item");
+            System.out.println("4) Devolver item");
+            System.out.println("5) Relatórios");
+            System.out.println("6) Auditoria");
+            System.out.println("7) Configurar limite de empréstimos");
+            System.out.println("8) Sair");
+            System.out.print("Opção: ");
+            opcao = input.nextInt();
+            input.nextLine();
+
+            switch (opcao) {
+                case 1:
+                    menuAcervo(input);
+                    break;
+                case 2:
+                    menuUsuarios(input);
+                    break;
+                case 3:
+                    emprestarItem(input);
+                    break;
+                case 4:
+                    devolverItem(input);
+                    break;
+                case 5:
+                    exibirRelatorios();
+                    break;
+                case 6:
+                    exibirAuditoria();
+                    break;
+                case 7:
+                    configurarLimite(input);
+                    break;
+                case 8:
+                    System.out.println("Encerrando sistema...");
+                    break;
+                default:
+                    System.out.println("Opção inválida. Tente novamente.");
+            }
+
+        } while (opcao != 8);
+    }
+
+    public static void menuAcervo(Scanner input) {
+        System.out.println("\n--- ACERVO ---");
+        System.out.println("1) Cadastrar novo item");
+        System.out.println("2) Listar acervo completo");
+        System.out.println("3) Buscar por prefixo");
+        System.out.print("Escolha: ");
+        int acao = input.nextInt();
+        input.nextLine();
+
+        switch (acao) {
+            case 1:
+                cadastrarItem(input);
+                break;
+            case 2:
+                listarAcervo();
+                break;
+            case 3:
+                buscarPorPrefixo(input);
+                break;
+            default:
+                System.out.println("Ação inválida.");
+        }
+    }
+
+    public static void cadastrarItem(Scanner input) {
+        System.out.println("\n--- CADASTRAR ITEM ---");
+        
+        System.out.print("Código do item: ");
+        String codigo = input.nextLine().trim().toUpperCase();
+        
+        if (acervo.containsKey(codigo)) {
+            System.out.println("Já existe um item com este código!");
+            return;
+        }
+        
+        System.out.print("Descrição/Título: ");
+        String descricao = input.nextLine().trim();
+        
+        acervo.put(codigo, descricao);
+        
+        String log = "CADASTRO - Item: " + codigo + " - " + descricao;
+        auditoria.add(log);
+        
+        System.out.println("Item cadastrado com sucesso!");
+    }
+
+    public static void listarAcervo() {
+        System.out.println("\n=== ACERVO COMPLETO ===");
+        
+        if (acervo.isEmpty()) {
+            System.out.println("Acervo vazio. Cadastre itens primeiro.");
+            return;
+        }
+        
+        int total = acervo.size();
+        int disponiveis = total - itensEmprestados.size();
+        
+        System.out.println("Total de itens: " + total);
+        System.out.println("Disponíveis: " + disponiveis);
+        System.out.println("Emprestados: " + itensEmprestados.size());
+        System.out.println("\nLista de itens:");
+        System.out.printf("%-10s %-30s %-15s\n", "CÓDIGO", "DESCRIÇÃO", "STATUS");
+        System.out.println("-".repeat(55));
+        
+        for (Map.Entry<String, String> item : acervo.entrySet()) {
+            String status = itensEmprestados.containsKey(item.getKey()) ? "EMPRESTADO" : "DISPONÍVEL";
+            System.out.printf("%-10s %-30s %-15s\n", 
+                            item.getKey(), 
+                            item.getValue(), 
+                            status);
+        }
+    }
+
+    public static void buscarPorPrefixo(Scanner input) {
+        System.out.println("\n--- BUSCAR POR PREFIXO ---");
+        System.out.print("Digite o prefixo do código: ");
+        String prefixo = input.nextLine().trim().toUpperCase();
+        
+        System.out.println("\nResultados da busca:");
+        boolean encontrou = false;
+        
+        for (Map.Entry<String, String> item : acervo.entrySet()) {
+            if (item.getKey().startsWith(prefixo)) {
+                String status = itensEmprestados.containsKey(item.getKey()) ? "EMPRESTADO" : "DISPONÍVEL";
+                System.out.printf("%-10s %-30s %-15s\n", 
+                                item.getKey(), 
+                                item.getValue(), 
+                                status);
+                encontrou = true;
+            }
+        }
+        
+        if (!encontrou) {
+            System.out.println("Nenhum item encontrado com prefixo '" + prefixo + "'");
+        }
+    }
+
+    public static void menuUsuarios(Scanner input) {
+        System.out.println("\n--- USUÁRIOS ---");
+        System.out.println("1) Cadastrar novo usuário");
+        System.out.println("2) Listar todos os usuários");
+        System.out.print("Escolha: ");
+        int acao = input.nextInt();
+        input.nextLine();
+
+        switch (acao) {
+            case 1:
+                cadastrarUsuario(input);
+                break;
+            case 2:
+                listarUsuarios();
+                break;
+            default:
+                System.out.println("Ação inválida.");
+        }
+    }
+
+    public static void cadastrarUsuario(Scanner input) {
+        System.out.println("\n--- CADASTRAR USUÁRIO ---");
+        
+        System.out.print("Identificador do usuário: ");
+        String idUsuario = input.nextLine().trim();
+        
+        if (usuarios.containsKey(idUsuario.toLowerCase())) {
+            System.out.println("Já existe um usuário com este identificador!");
+            return;
+        }
+        
+        System.out.print("Nome completo: ");
+        String nome = input.nextLine().trim();
+        
+        usuarios.put(idUsuario.toLowerCase(), nome);
+        contadorEmprestimosUsuario.put(idUsuario.toLowerCase(), 0);
+        
+        String log = "CADASTRO - Usuário: " + idUsuario + " - " + nome;
+        auditoria.add(log);
+        
+        System.out.println("Usuário cadastrado com sucesso!");
+    }
+
+    public static void listarUsuarios() {
+        System.out.println("\n=== LISTA DE USUÁRIOS ===");
+        
+        if (usuarios.isEmpty()) {
+            System.out.println("Nenhum usuário cadastrado.");
+            return;
+        }
+        
+        System.out.printf("%-15s %-30s %-15s\n", "ID", "NOME", "EMPRÉSTIMOS ATUAIS");
+        System.out.println("-".repeat(60));
+        
+        for (Map.Entry<String, String> usuario : usuarios.entrySet()) {
+            String id = usuario.getKey();
+            int emprestimosAtuais = contadorEmprestimosUsuario.getOrDefault(id, 0);
+            System.out.printf("%-15s %-30s %-15d\n", 
+                            id, 
+                            usuario.getValue(), 
+                            emprestimosAtuais);
+        }
+    }
+
+    public static void emprestarItem(Scanner input) {
+        System.out.println("\n--- EMPRESTAR ITEM ---");
+        
+        if (acervo.isEmpty()) {
+            System.out.println("Acervo vazio. Cadastre itens primeiro.");
+            return;
+        }
+        
+        if (usuarios.isEmpty()) {
+            System.out.println("Nenhum usuário cadastrado.");
+            return;
+        }
+        
+        System.out.print("Código do item: ");
+        String codigo = input.nextLine().trim().toUpperCase();
+        
+        if (!acervo.containsKey(codigo)) {
+            System.out.println("Item não encontrado no acervo!");
+            return;
+        }
+        
+        if (itensEmprestados.containsKey(codigo)) {
+            System.out.println("Item já está emprestado!");
+            return;
+        }
+        
+        System.out.print("Identificador do usuário: ");
+        String idUsuario = input.nextLine().trim().toLowerCase();
+        
+        if (!usuarios.containsKey(idUsuario)) {
+            System.out.println("Usuário não encontrado!");
+            return;
+        }
+        
+        int emprestimosAtuais = contadorEmprestimosUsuario.getOrDefault(idUsuario, 0);
+        
+        if (emprestimosAtuais >= limiteEmprestimos) {
+            System.out.println("Usuário atingiu o limite de " + limiteEmprestimos + " empréstimos simultâneos!");
+            return;
+        }
+        
+        String nomeUsuario = usuarios.get(idUsuario);
+        String descricaoItem = acervo.get(codigo);
+        
+        itensEmprestados.put(codigo, idUsuario);
+        contadorEmprestimosUsuario.put(idUsuario, emprestimosAtuais + 1);
+        
+        String dataHora = new Date().toString();
+        String log = "EMPRÉSTIMO - " + dataHora + " - Usuário: " + nomeUsuario + 
+                    " (" + idUsuario + ") - Item: " + codigo + " - " + descricaoItem;
+        auditoria.add(log);
+        
+        System.out.println("\nEmpréstimo realizado com sucesso!");
+        System.out.println("Usuário: " + nomeUsuario);
+        System.out.println("Item: " + codigo + " - " + descricaoItem);
+        System.out.println("Empréstimos atuais do usuário: " + (emprestimosAtuais + 1) + "/" + limiteEmprestimos);
+    }
+
+    public static void devolverItem(Scanner input) {
+        System.out.println("\n--- DEVOLVER ITEM ---");
+        
+        if (itensEmprestados.isEmpty()) {
+            System.out.println("Não há itens emprestados no momento.");
+            return;
+        }
+        
+        System.out.print("Código do item a devolver: ");
+        String codigo = input.nextLine().trim().toUpperCase();
+        
+        if (!itensEmprestados.containsKey(codigo)) {
+            System.out.println("Este item não está emprestado ou não existe!");
+            return;
+        }
+        
+        String idUsuario = itensEmprestados.get(codigo);
+        String nomeUsuario = usuarios.get(idUsuario);
+        String descricaoItem = acervo.get(codigo);
+        
+        itensEmprestados.remove(codigo);
+        
+        int emprestimosAtuais = contadorEmprestimosUsuario.get(idUsuario) - 1;
+        contadorEmprestimosUsuario.put(idUsuario, Math.max(0, emprestimosAtuais));
+        
+        String dataHora = new Date().toString();
+        String log = "DEVOLUÇÃO - " + dataHora + " - Usuário: " + nomeUsuario + 
+                    " (" + idUsuario + ") - Item: " + codigo + " - " + descricaoItem;
+        auditoria.add(log);
+        
+        System.out.println("\nDevolução realizada com sucesso!");
+        System.out.println("Usuário: " + nomeUsuario);
+        System.out.println("Item: " + codigo + " - " + descricaoItem);
+        System.out.println("Empréstimos atuais do usuário: " + emprestimosAtuais + "/" + limiteEmprestimos);
+    }
+
+    public static void exibirRelatorios() {
+        System.out.println("\n===== RELATÓRIOS =====");
+        
+        if (usuarios.isEmpty()) {
+            System.out.println("Nenhum usuário cadastrado.");
+            return;
+        }
+        
+        System.out.println("\n=== ITENS EMPRESTADOS POR USUÁRIO ===");
+        
+        boolean algumEmprestimo = false;
+        for (Map.Entry<String, String> usuario : usuarios.entrySet()) {
+            String idUsuario = usuario.getKey();
+            List<String> itensDoUsuario = new ArrayList<>();
+            
+            for (Map.Entry<String, String> emprestimo : itensEmprestados.entrySet()) {
+                if (emprestimo.getValue().equals(idUsuario)) {
+                    itensDoUsuario.add(emprestimo.getKey() + " - " + acervo.get(emprestimo.getKey()));
+                }
+            }
+            
+            if (!itensDoUsuario.isEmpty()) {
+                algumEmprestimo = true;
+                System.out.println("\nUsuário: " + usuario.getValue() + " (" + idUsuario + ")");
+                System.out.println("Total emprestado: " + itensDoUsuario.size());
+                for (String item : itensDoUsuario) {
+                    System.out.println("  • " + item);
+                }
+            }
+        }
+        
+        if (!algumEmprestimo) {
+            System.out.println("Nenhum item emprestado no momento.");
+        }
+        
+        System.out.println("\n=== USUÁRIOS COM MAIS EMPRÉSTIMOS ATUAIS ===");
+        
+        List<Map.Entry<String, Integer>> ranking = new ArrayList<>(contadorEmprestimosUsuario.entrySet());
+        ranking.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+        
+        int limite = Math.min(5, ranking.size());
+        for (int i = 0; i < limite; i++) {
+            String idUsuario = ranking.get(i).getKey();
+            int quantidade = ranking.get(i).getValue();
+            if (quantidade > 0) {
+                String nomeUsuario = usuarios.get(idUsuario);
+                System.out.printf("%d) %s - %s: %d empréstimo(s)\n", 
+                                i + 1, nomeUsuario, idUsuario, quantidade);
+            }
+        }
+        
+        System.out.println("\n=== ESTATÍSTICAS GERAIS ===");
+        System.out.println("Total de itens no acervo: " + acervo.size());
+        System.out.println("Itens emprestados: " + itensEmprestados.size());
+        System.out.println("Itens disponíveis: " + (acervo.size() - itensEmprestados.size()));
+        System.out.println("Total de usuários: " + usuarios.size());
+        System.out.println("Limite de empréstimos por usuário: " + limiteEmprestimos);
+    }
+
+    public static void exibirAuditoria() {
+        System.out.println("\n===== AUDITORIA - ÚLTIMAS OPERAÇÕES =====");
+        
+        if (auditoria.isEmpty()) {
+            System.out.println("Nenhuma operação registrada ainda.");
+            return;
+        }
+        
+        System.out.println("Total de operações registradas: " + auditoria.size());
+        System.out.println("\nÚltimas 20 operações:");
+        System.out.println("-".repeat(80));
+        
+        int inicio = Math.max(0, auditoria.size() - 20);
+        for (int i = inicio; i < auditoria.size(); i++) {
+            System.out.println((i + 1) + ") " + auditoria.get(i));
+        }
+    }
+
+    public static void configurarLimite(Scanner input) {
+        System.out.println("\n--- CONFIGURAR LIMITE DE EMPRÉSTIMOS ---");
+        System.out.println("Limite atual: " + limiteEmprestimos + " itens por usuário");
+        
+        System.out.print("Novo limite (mínimo 1, máximo 10): ");
+        int novoLimite = input.nextInt();
+        input.nextLine();
+        
+        if (novoLimite >= 1 && novoLimite <= 10) {
+            limiteEmprestimos = novoLimite;
+            System.out.println("Limite atualizado para " + limiteEmprestimos + " empréstimos por usuário.");
+            
+            String log = "CONFIGURAÇÃO - Limite alterado para: " + limiteEmprestimos;
+            auditoria.add(log);
+        } else {
+            System.out.println("Limite inválido! Deve ser entre 1 e 10.");
+        }
+    }
+
+    // FUNÇÕES AUXILIARES
+    private static void exibirItensEmprestados() {
+        if (itensEmprestados.isEmpty()) {
+            System.out.println("Nenhum item emprestado no momento.");
+            return;
+        }
+        
+        System.out.println("\n=== ITENS EMPRESTADOS ===");
+        for (Map.Entry<String, String> emprestimo : itensEmprestados.entrySet()) {
+            String codigo = emprestimo.getKey();
+            String idUsuario = emprestimo.getValue();
+            String nomeUsuario = usuarios.get(idUsuario);
+            String descricao = acervo.get(codigo);
+            
+            System.out.println("Item: " + codigo + " - " + descricao);
+            System.out.println("  Emprestado para: " + nomeUsuario + " (" + idUsuario + ")");
+        }
+    }
+}
+

@@ -1,0 +1,396 @@
+import java.util.*;
+
+public class FrequenciaAulas {
+
+    private static Map<String, Set<String>> aulas = new HashMap<>();
+    private static Set<String> todosAlunos = new HashSet<>();
+
+    public static void main(String[] args) {
+        Scanner input = new Scanner(System.in);
+        int opcao;
+
+        do {
+            System.out.println("\n===== SISTEMA DE FREQUÊNCIA =====");
+            System.out.println("1) Criar nova aula");
+            System.out.println("2) Registrar presença em uma aula");
+            System.out.println("3) Listar presentes de uma aula");
+            System.out.println("4) Consultar frequência de um aluno");
+            System.out.println("5) Relatórios (ranking e faltas)");
+            System.out.println("6) Excluir aula");
+            System.out.println("7) Sair");
+            System.out.print("Opção: ");
+            opcao = input.nextInt();
+            input.nextLine();
+
+            switch (opcao) {
+                case 1:
+                    criarAula(input);
+                    break;
+                case 2:
+                    registrarPresenca(input);
+                    break;
+                case 3:
+                    listarPresentesAula(input);
+                    break;
+                case 4:
+                    consultarFrequenciaAluno(input);
+                    break;
+                case 5:
+                    exibirRelatorios();
+                    break;
+                case 6:
+                    excluirAula(input);
+                    break;
+                case 7:
+                    System.out.println("Encerrando sistema...");
+                    break;
+                default:
+                    System.out.println("Opção inválida. Tente novamente.");
+            }
+
+        } while (opcao != 7);
+    }
+
+    public static void criarAula(Scanner input) {
+        System.out.println("\n--- CRIAR NOVA AULA ---");
+        System.out.print("Identificador da aula (ex: 2024-03-20, Aula01): ");
+        String idAula = input.nextLine().trim();
+        
+        if (aulas.containsKey(idAula.toLowerCase())) {
+            System.out.println("Já existe uma aula com este identificador!");
+            return;
+        }
+        
+        aulas.put(idAula.toLowerCase(), new HashSet<>());
+        System.out.println("Aula '" + idAula + "' criada com sucesso!");
+    }
+
+    public static void registrarPresenca(Scanner input) {
+        if (aulas.isEmpty()) {
+            System.out.println("Não há aulas cadastradas!");
+            return;
+        }
+        
+        System.out.println("\n--- REGISTRAR PRESENÇA ---");
+        
+        System.out.println("Aulas disponíveis:");
+        listarAulas();
+        
+        System.out.print("Identificador da aula: ");
+        String idAula = input.nextLine().trim().toLowerCase();
+        
+        if (!aulas.containsKey(idAula)) {
+            System.out.println("Aula não encontrada!");
+            return;
+        }
+        
+        Set<String> presentes = aulas.get(idAula);
+        
+        System.out.print("Nome do aluno: ");
+        String aluno = input.nextLine().trim();
+        
+        String alunoLower = aluno.toLowerCase();
+        
+        for (String alunoPresente : presentes) {
+            if (alunoPresente.toLowerCase().equals(alunoLower)) {
+                System.out.println("Este aluno já está registrado nesta aula!");
+                return;
+            }
+        }
+        
+        presentes.add(aluno);
+        todosAlunos.add(aluno);
+        
+        System.out.println("Presença de '" + aluno + "' registrada na aula '" + getNomeAulaOriginal(idAula) + "'");
+    }
+
+    public static void listarPresentesAula(Scanner input) {
+        if (aulas.isEmpty()) {
+            System.out.println("Não há aulas cadastradas!");
+            return;
+        }
+        
+        System.out.println("\n--- LISTAR PRESENTES EM AULA ---");
+        
+        System.out.println("Aulas disponíveis:");
+        listarAulas();
+        
+        System.out.print("Identificador da aula: ");
+        String idAula = input.nextLine().trim().toLowerCase();
+        
+        if (!aulas.containsKey(idAula)) {
+            System.out.println("Aula não encontrada!");
+            return;
+        }
+        
+        Set<String> presentes = aulas.get(idAula);
+        
+        System.out.println("\n=== Presentes na aula '" + getNomeAulaOriginal(idAula) + "' ===");
+        System.out.println("Total: " + presentes.size() + " aluno(s)");
+        
+        if (presentes.isEmpty()) {
+            System.out.println("Nenhum aluno registrado ainda.");
+        } else {
+            int contador = 1;
+            for (String aluno : presentes) {
+                System.out.println(contador + ") " + aluno);
+                contador++;
+            }
+        }
+    }
+
+    public static void consultarFrequenciaAluno(Scanner input) {
+        if (todosAlunos.isEmpty()) {
+            System.out.println("Nenhum aluno registrado no sistema ainda!");
+            return;
+        }
+        
+        System.out.println("\n--- CONSULTAR FREQUÊNCIA DE ALUNO ---");
+        System.out.print("Nome do aluno: ");
+        String aluno = input.nextLine().trim();
+        
+        String alunoLower = aluno.toLowerCase();
+        String alunoOriginal = encontrarAlunoOriginal(aluno);
+        
+        if (alunoOriginal == null) {
+            System.out.println("Aluno não encontrado no sistema.");
+            return;
+        }
+        
+        int totalAulas = aulas.size();
+        int presencas = 0;
+        List<String> aulasPresente = new ArrayList<>();
+        List<String> aulasFaltante = new ArrayList<>();
+        
+        for (Map.Entry<String, Set<String>> entry : aulas.entrySet()) {
+            String idAula = entry.getKey();
+            Set<String> presentes = entry.getValue();
+            
+            boolean presente = false;
+            for (String alunoPresente : presentes) {
+                if (alunoPresente.toLowerCase().equals(alunoLower)) {
+                    presente = true;
+                    break;
+                }
+            }
+            
+            if (presente) {
+                presencas++;
+                aulasPresente.add(getNomeAulaOriginal(idAula));
+            } else {
+                aulasFaltante.add(getNomeAulaOriginal(idAula));
+            }
+        }
+        
+        System.out.println("\n=== FREQUÊNCIA DE " + alunoOriginal.toUpperCase() + " ===");
+        System.out.println("Total de aulas no sistema: " + totalAulas);
+        System.out.println("Presenças: " + presencas);
+        System.out.println("Faltas: " + (totalAulas - presencas));
+        
+        if (totalAulas > 0) {
+            double percentual = (presencas * 100.0) / totalAulas;
+            System.out.printf("Percentual de presença: %.2f%%\n", percentual);
+        }
+        
+        System.out.println("\nAulas presentes (" + aulasPresente.size() + "):");
+        for (String aula : aulasPresente) {
+            System.out.println("  ✓ " + aula);
+        }
+        
+        System.out.println("\nAulas faltantes (" + aulasFaltante.size() + "):");
+        for (String aula : aulasFaltante) {
+            System.out.println("  ✗ " + aula);
+        }
+    }
+
+    public static void exibirRelatorios() {
+        if (todosAlunos.isEmpty()) {
+            System.out.println("Nenhum aluno registrado no sistema ainda!");
+            return;
+        }
+        
+        System.out.println("\n===== RELATÓRIOS ESTATÍSTICOS =====");
+        
+        int totalAulas = aulas.size();
+        System.out.println("Total de aulas registradas: " + totalAulas);
+        System.out.println("Total de alunos no sistema: " + todosAlunos.size());
+        
+        if (totalAulas == 0) {
+            System.out.println("Nenhuma aula registrada para calcular estatísticas.");
+            return;
+        }
+        
+        List<AlunoEstatistica> estatisticas = new ArrayList<>();
+        
+        for (String aluno : todosAlunos) {
+            String alunoLower = aluno.toLowerCase();
+            int presencas = 0;
+            
+            for (Set<String> presentes : aulas.values()) {
+                boolean presente = false;
+                for (String alunoPresente : presentes) {
+                    if (alunoPresente.toLowerCase().equals(alunoLower)) {
+                        presente = true;
+                        break;
+                    }
+                }
+                if (presente) presencas++;
+            }
+            
+            estatisticas.add(new AlunoEstatistica(aluno, presencas, totalAulas - presencas));
+        }
+        
+        Collections.sort(estatisticas, (a1, a2) -> {
+            if (a2.presencas != a1.presencas) {
+                return Integer.compare(a2.presencas, a1.presencas);
+            }
+            return a1.nome.compareTo(a2.nome);
+        });
+        
+        System.out.println("\n=== RANKING DE PRESENÇA ===");
+        System.out.printf("%-30s %-10s %-10s %-10s\n", "ALUNO", "PRESENÇAS", "FALTAS", "PERCENTUAL");
+        System.out.println("-".repeat(60));
+        
+        for (AlunoEstatistica estat : estatisticas) {
+            double percentual = totalAulas > 0 ? (estat.presencas * 100.0) / totalAulas : 0;
+            System.out.printf("%-30s %-10d %-10d %-10.2f%%\n", 
+                            estat.nome, estat.presencas, estat.faltas, percentual);
+        }
+        
+        System.out.println("\n=== ALUNOS COM MAIS FALTAS ===");
+        Collections.sort(estatisticas, (a1, a2) -> {
+            if (a2.faltas != a1.faltas) {
+                return Integer.compare(a2.faltas, a1.faltas);
+            }
+            return a1.nome.compareTo(a2.nome);
+        });
+        
+        int limite = Math.min(5, estatisticas.size());
+        for (int i = 0; i < limite; i++) {
+            AlunoEstatistica estat = estatisticas.get(i);
+            if (estat.faltas > 0) {
+                System.out.printf("%d) %s - %d faltas\n", 
+                                i + 1, estat.nome, estat.faltas);
+            }
+        }
+        
+        int totalPresencas = 0;
+        for (AlunoEstatistica estat : estatisticas) {
+            totalPresencas += estat.presencas;
+        }
+        
+        double mediaPresencas = todosAlunos.size() > 0 ? 
+                              (double) totalPresencas / todosAlunos.size() : 0;
+        System.out.printf("\nMédia de presenças por aluno: %.2f\n", mediaPresencas);
+    }
+
+    public static void excluirAula(Scanner input) {
+        if (aulas.isEmpty()) {
+            System.out.println("Não há aulas cadastradas!");
+            return;
+        }
+        
+        System.out.println("\n--- EXCLUIR AULA ---");
+        
+        System.out.println("Aulas disponíveis:");
+        listarAulas();
+        
+        System.out.print("Identificador da aula a excluir: ");
+        String idAula = input.nextLine().trim().toLowerCase();
+        
+        if (!aulas.containsKey(idAula)) {
+            System.out.println("Aula não encontrada!");
+            return;
+        }
+        
+        String nomeAulaOriginal = getNomeAulaOriginal(idAula);
+        Set<String> presentes = aulas.get(idAula);
+        
+        System.out.println("Aula: " + nomeAulaOriginal);
+        System.out.println("Alunos registrados: " + presentes.size());
+        
+        System.out.print("Tem certeza que deseja excluir esta aula? (S/N): ");
+        String confirmacao = input.nextLine().trim();
+        
+        if (confirmacao.equalsIgnoreCase("S")) {
+            aulas.remove(idAula);
+            
+            for (String aluno : presentes) {
+                boolean alunoEmOutrasAulas = false;
+                for (Set<String> outrosPresentes : aulas.values()) {
+                    for (String outroAluno : outrosPresentes) {
+                        if (outroAluno.toLowerCase().equals(aluno.toLowerCase())) {
+                            alunoEmOutrasAulas = true;
+                            break;
+                        }
+                    }
+                    if (alunoEmOutrasAulas) break;
+                }
+                
+                if (!alunoEmOutrasAulas) {
+                    todosAlunos.removeIf(a -> a.toLowerCase().equals(aluno.toLowerCase()));
+                }
+            }
+            
+            System.out.println("Aula '" + nomeAulaOriginal + "' excluída com sucesso!");
+        } else {
+            System.out.println("Exclusão cancelada.");
+        }
+    }
+
+    // FUNÇÕES AUXILIARES
+    private static void listarAulas() {
+        if (aulas.isEmpty()) {
+            System.out.println("  (Nenhuma aula cadastrada)");
+            return;
+        }
+        
+        int contador = 1;
+        for (String idAula : aulas.keySet()) {
+            String nomeOriginal = getNomeAulaOriginal(idAula);
+            int quantidadeAlunos = aulas.get(idAula).size();
+            System.out.printf("%d) %s (%d alunos)\n", contador, nomeOriginal, quantidadeAlunos);
+            contador++;
+        }
+    }
+    
+    private static String getNomeAulaOriginal(String idLower) {
+        for (String id : aulas.keySet()) {
+            if (id.equals(idLower)) {
+                for (Map.Entry<String, Set<String>> entry : aulas.entrySet()) {
+                    if (entry.getKey().equals(idLower)) {
+                        for (String aluno : entry.getValue()) {
+                            return aluno; // Esta lógica precisa ser ajustada
+                        }
+                    }
+                }
+            }
+        }
+        return idLower;
+    }
+    
+    private static String encontrarAlunoOriginal(String nomeBusca) {
+        String nomeLower = nomeBusca.toLowerCase();
+        
+        for (String aluno : todosAlunos) {
+            if (aluno.toLowerCase().equals(nomeLower)) {
+                return aluno;
+            }
+        }
+        
+        return null;
+    }
+    
+    // Classe auxiliar para estatísticas
+    static class AlunoEstatistica {
+        String nome;
+        int presencas;
+        int faltas;
+        
+        AlunoEstatistica(String nome, int presencas, int faltas) {
+            this.nome = nome;
+            this.presencas = presencas;
+            this.faltas = faltas;
+        }
+    }
+}
